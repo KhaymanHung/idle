@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "*.h": "cpp",
+        "*.cpp": "cpp",
+        "qstring": "cpp",
+        "qvector": "cpp",
+        "qlist": "cpp",
+        "qmap": "cpp",
+        "qhash": "cpp",
+        "qobject": "cpp",
+        "qwidget": "cpp",
+        "qapplication": "cpp",
+        "qtcpserver": "cpp",
+        "qtcpsocket": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "D:/Qt/5.15.2/msvc2019/include/**"
+    ]
+}
