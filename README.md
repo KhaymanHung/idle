@@ -1,23 +1,28 @@
 # TCP/IP Server-Client 專案
 
-Qt5 + VC++ TCP/IP 通訊專案，含圖形化 Server 和 Client 應用程式。
+這個專案已從 Visual Studio/MSBuild 專案轉成 Qt 5 + CMake 設定，可在 Windows Terminal 與 Linux 環境中使用相同原始碼進行編譯。
 
 ## 專案結構
 
 ```
 idle/
-├── idle.sln                    # VS 方案檔
-├── Qt5Settings.props           # Qt 路徑配置
-├── server/                     # Server 專案
-│   ├── Server.vcxproj
+├── CMakeLists.txt              # 根專案設定
+├── CMakePresets.json           # Windows / Linux 編譯預設
+├── build_qt.ps1                # Windows 編譯腳本
+├── README.md                   # 專案說明
+├── client/
+│   ├── CMakeLists.txt
 │   ├── main.cpp
-│   ├── server.h/cpp            # TCP Server 邏輯
-│   └── serverwindow.h/cpp/ui   # GUI 介面
-└── client/                     # Client 專案
-    ├── Client.vcxproj
-    ├── main.cpp
-    ├── client.h/cpp            # TCP Client 邏輯
-    └── clientwindow.h/cpp/ui   # GUI 介面
+│   ├── client.h/cpp
+│   ├── clientwindow.h/cpp/ui
+│   └── ...
+├── server/
+│   ├── CMakeLists.txt
+│   ├── main.cpp
+│   ├── server.h/cpp
+│   ├── serverwindow.h/cpp/ui
+│   └── ...
+└── Qt5Settings.props           # Legacy VC 設定（保留僅作參考，不再為主要建置流程）
 ```
 
 ## 功能
@@ -27,29 +32,65 @@ idle/
 
 ## 環境需求
 
-- Visual Studio 2022 (MSVC v143)
-- Qt 5.15.2 MSVC 2019 32-bit: `D:\Qt\5.15.2\msvc2019`
+- CMake 3.16+
+- Qt 5.x (推薦 5.15.2)
+- Windows: Visual Studio 2022 + Qt 5.15.2 msvc2019_64
+- Linux: Qt 5 開發套件（例如 `qtbase5-dev`、`qttools5-dev`）
 
-## 快速開始
+## Windows 編譯
 
-## 快速開始
+已驗證可用，使用以下命令即可在 Windows Terminal 編譯：
 
-### 編譯與執行
+### 方式 1：CMake 預設
 
-1. 開啟 `idle.sln`
-2. 選擇 **Win32** 平台（**Debug** 或 **Release**）
-3. 按 `F5` 編譯並執行
-4. Qt DLL 自動複製到 `bin\Debug\` 或 `bin\Release\`
+```powershell
+cmake --preset windows-qt5
+cmake --build --preset windows-qt5 --config Release
+```
 
-### 使用
+### 方式 2：手動建置（已驗證）
 
-**Server**: 設定埠號（預設 8888）→ 啟動伺服器  
-**Client**: 輸入主機 IP 和埠號 → 連線
+```powershell
+cmake -S . -B build/windows -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="D:/Qt/5.15.2/msvc2019_64"
+cmake --build build/windows --config Release --parallel
+```
 
-## 修改介面
+### 方式 3：使用腳本
 
-使用 Qt Designer：`D:\Qt\5.15.2\msvc2019\bin\designer.exe`  
-編輯 `.ui` 檔案後重新編譯。
+```powershell
+./build_qt.ps1
+```
+
+編譯完成後，執行檔會在以下位置：
+
+- Server: `build/windows/server/Release/idle_server.exe`
+- Client: `build/windows/client/Release/idle_client.exe`
+
+## Linux 編譯
+
+```bash
+cmake --preset linux-qt5
+cmake --build --preset linux-qt5
+```
+
+若系統 Qt 5 安裝路徑不同，可改用：
+
+```bash
+cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake/Qt5;/usr/lib/x86_64-linux-gnu"
+cmake --build build/linux
+```
+
+Linux 編譯完成後，執行檔通常會在：
+
+- `build/linux/server/idle_server`
+- `build/linux/client/idle_client`
+
+## 執行
+
+- 啟動 `idle_server`
+- 啟動 `idle_client`
+- Server 設定埠號（預設 8888）
+- Client 輸入主機 IP 和埠號進行連線
 
 ## 技術說明
 
@@ -57,12 +98,12 @@ idle/
 - **Client**: `QTcpSocket` 連線通訊
 - **MOC**: 自動處理 Qt signals/slots
 - **UIC**: 自動生成 UI 類別
-- **Post-Build**: 自動複製必要 Qt DLL（僅 Release 版本）
+- **Build Tool**: CMake + Qt 5，脫離 Visual Studio 專案檔依賴
 
 ## 常見問題
 
-**Q: Qt 路徑不同怎麼辦？**  
-A: 編輯 `Qt5Settings.props` 修改 `<QtDir>` 路徑。
+**Q: Windows 架構不匹配怎麼辦？**  
+A: 使用 `msvc2019_64` 這個 Qt 路徑，避免 32-bit/64-bit 混用。
 
-**Q: 找不到 Qt5Core.dll？**  
-A: 重新編譯，Post-Build 會自動複製 DLL。
+**Q: Linux 找不到 Qt5？**  
+A: 確認已安裝 `qtbase5-dev` 等套件，並設定正確的 `CMAKE_PREFIX_PATH`。
