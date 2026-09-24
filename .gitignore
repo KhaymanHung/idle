@@ -13,6 +13,7 @@
 .vscode/ipch/
 
 # Build outputs
+build/
 bin/
 obj/
 Debug/

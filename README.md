@@ -1,109 +1,161 @@
-# TCP/IP Server-Client 專案
+# TCP 通訊驗證專案
 
-這個專案已從 Visual Studio/MSBuild 專案轉成 Qt 5 + CMake 設定，可在 Windows Terminal 與 Linux 環境中使用相同原始碼進行編譯。
+這個專案的目標不是聊天室，也不做任何 UI。
+
+目標是驗證：
+
+- 單一 Java Server 可以接收多個 Client 連線
+- 多個 Unity Client 可以透過 TCP 傳送與接收訊息
+- Server 直接輸出到終端機，方便觀察連線與資料流
+- 不做 2、3 這種聊天室擴充功能，只保留核心通訊驗證
 
 ## 專案結構
 
-```
+```text
 idle/
-├── CMakeLists.txt              # 根專案設定
-├── CMakePresets.json           # Windows / Linux 編譯預設
-├── build_qt.ps1                # Windows 編譯腳本
-├── README.md                   # 專案說明
-├── client/
-│   ├── CMakeLists.txt
-│   ├── main.cpp
-│   ├── client.h/cpp
-│   ├── clientwindow.h/cpp/ui
-│   └── ...
+├── README.md
 ├── server/
-│   ├── CMakeLists.txt
-│   ├── main.cpp
-│   ├── server.h/cpp
-│   ├── serverwindow.h/cpp/ui
-│   └── ...
-└── Qt5Settings.props           # Legacy VC 設定（保留僅作參考，不再為主要建置流程）
+│   ├── pom.xml
+│   ├── start-server.bat
+│   └── src/
+│       └── main/java/com/idle/chat/
+│           ├── Server.java
+│           └── ClientHandler.java
+├── client/
+│   └── UnityClient/
+│       ├── README.md
+│       └── Assets/
+│           └── Scripts/
+│               └── ChatClient.cs
+├── scripts/
+│   └── README.md
+└── .gitignore
 ```
 
-## 功能
+## 伺服器端
 
-- **Server**: 多客戶端連線、訊息廣播、連線監控
-- **Client**: 連線 Server、收發訊息
+- 語言：Java
+- 通訊方式：TCP Socket
+- 執行模式：終端機直接顯示
+- 功能：接受多個 client、顯示連線狀態、轉送訊息
 
-## 環境需求
+這個環境已確認 `java` 和 `javac` 可直接使用，因此不需要 Maven。
 
-- CMake 3.16+
-- Qt 5.x (推薦 5.15.2)
-- Windows: Visual Studio 2022 + Qt 5.15.2 msvc2019_64
-- Linux: Qt 5 開發套件（例如 `qtbase5-dev`、`qttools5-dev`）
-
-## Windows 編譯
-
-已驗證可用，使用以下命令即可在 Windows Terminal 編譯：
-
-### 方式 1：CMake 預設
+### 正常執行
 
 ```powershell
-cmake --preset windows-qt5
-cmake --build --preset windows-qt5 --config Release
+cd server
+$files = Get-ChildItem -Path .\src\main\java\com\idle\chat -Filter *.java | Select-Object -ExpandProperty FullName
+javac -d out $files
+java -cp out com.idle.chat.Server
 ```
 
-### 方式 2：手動建置（已驗證）
+也可直接執行：
 
 ```powershell
-cmake -S . -B build/windows -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="D:/Qt/5.15.2/msvc2019_64"
-cmake --build build/windows --config Release --parallel
+cd server
+.\start-server.bat
 ```
 
-### 方式 3：使用腳本
+### 背景執行
+
+如果你想讓伺服器在背景執行，不要佔住目前的終端機視窗，可使用：
 
 ```powershell
-./build_qt.ps1
+cd server
+Start-Process powershell -ArgumentList "-NoExit","-Command","cd '$PWD'; java -cp out com.idle.chat.Server"
 ```
 
-編譯完成後，執行檔會在以下位置：
+或直接在同一個 PowerShell 內啟動另一個背景工作：
 
-- Server: `build/windows/server/Release/idle_server.exe`
-- Client: `build/windows/client/Release/idle_client.exe`
-
-## Linux 編譯
-
-```bash
-cmake --preset linux-qt5
-cmake --build --preset linux-qt5
+```powershell
+cd server
+Start-Job -ScriptBlock { Set-Location "D:\work\idle\server"; java -cp out com.idle.chat.Server }
 ```
 
-若系統 Qt 5 安裝路徑不同，可改用：
+如果你想在背景執行時保留輸出日誌，可以這樣做：
 
-```bash
-cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake/Qt5;/usr/lib/x86_64-linux-gnu"
-cmake --build build/linux
+```powershell
+cd server
+$log = "server.log"
+Start-Process powershell -ArgumentList "-NoExit","-Command","cd '$PWD'; java -cp out com.idle.chat.Server 2>&1 | Tee-Object -FilePath '$log'"
 ```
 
-Linux 編譯完成後，執行檔通常會在：
+### 背景執行時停止程式
 
-- `build/linux/server/idle_server`
-- `build/linux/client/idle_client`
+背景執行測試完成後，請務必關閉伺服器，避免 port 9000 仍被佔用，影響後續測試或重新啟動。
 
-## 執行
+最簡單方式：
 
-- 啟動 `idle_server`
-- 啟動 `idle_client`
-- Server 設定埠號（預設 8888）
-- Client 輸入主機 IP 和埠號進行連線
+```powershell
+cd server
+.\stop-server.bat
+```
 
-## 技術說明
+如果要手動確認，再用：
 
-- **Server**: `QTcpServer` 多客戶端管理
-- **Client**: `QTcpSocket` 連線通訊
-- **MOC**: 自動處理 Qt signals/slots
-- **UIC**: 自動生成 UI 類別
-- **Build Tool**: CMake + Qt 5，脫離 Visual Studio 專案檔依賴
+```powershell
+netstat -ano | findstr :9000
+```
 
-## 常見問題
+找到 PID 後停止：
 
-**Q: Windows 架構不匹配怎麼辦？**  
-A: 使用 `msvc2019_64` 這個 Qt 路徑，避免 32-bit/64-bit 混用。
+```powershell
+taskkill /PID <PID> /F
+```
 
-**Q: Linux 找不到 Qt5？**  
-A: 確認已安裝 `qtbase5-dev` 等套件，並設定正確的 `CMAKE_PREFIX_PATH`。
+例如：
+
+```powershell
+taskkill /PID 12345 /F
+```
+
+如果你想先確認目前是否有 Java Server 在跑：
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object { $_.Name -match "java" }
+```
+
+預設 Port：9000
+
+## Unity Client
+
+- 語言：C#
+- 目標：用來連線 Java Server
+- 角色：簡單的測試端，不做 UI
+
+使用方式：
+
+1. 打開 Unity
+2. 將 `client/UnityClient` 匯入專案
+3. 把 `Assets/Scripts/ChatClient.cs` 掛到任意 GameObject
+4. 設定 `host` 和 `port`
+5. 執行後即可連接到 Java Server
+6. 使用 `SendMessage("test")` 送出測試訊息
+
+## 驗證重點
+
+這個專案的核心驗證目標是：
+
+- 1 個 server + 多個 client 同時連線
+- 訊息可由 client 傳到 server
+- server 可在終端機顯示收到的訊息
+- server 可廣播給其他連線中的 client
+- 不需要額外聊天室功能、會員系統、UI、房間管理
+
+## 連線範例
+
+```text
+Server: 127.0.0.1:9000
+```
+
+Client 端可直接設定為：
+
+```csharp
+host = "127.0.0.1";
+port = 9000;
+```
+
+## 備註
+
+這是最小化的單 server 多 client 通訊驗證專案，目的是驗證 TCP 架構與多連線行為，而不是實作聊天介面。

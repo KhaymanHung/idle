@@ -1,4 +1,0 @@
-D:/work/idle/build/windows/CMakeFiles/ALL_BUILD.dir
-D:/work/idle/build/windows/CMakeFiles/ZERO_CHECK.dir
-D:/work/idle/build/windows/server/CMakeFiles/idle_server.dir
-D:/work/idle/build/windows/client/CMakeFiles/idle_client.dir
